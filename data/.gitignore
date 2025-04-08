@@ -1,3 +1,6 @@
 /adult.data
 /adult.test
 /heart_lab3.csv
+/processed_train_data_heart.csv
+/processed_val_data_heart.csv
+/processed_test_data_heart.csv
