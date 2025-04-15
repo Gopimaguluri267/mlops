@@ -1,0 +1,11 @@
+stages:
+  prepare:
+    cmd: python src/preprocessing.py
+    deps:
+      - data/heart_lab3.csv
+      - src/preprocessing.py
+    outs:
+      - models/preprocessor.pkl
+      - data/processed_train_data_heart.csv
+      - data/processed_val_data_heart.csv
+      - data/processed_test_data_heart.csv
