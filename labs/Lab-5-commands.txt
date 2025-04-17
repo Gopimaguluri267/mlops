@@ -1,0 +1,116 @@
+SQL
+
+./gcloud sql instances create "mlops-exp" \                  
+  --database-version=POSTGRES_15 \
+  --region=us-west2 \
+  --tier=db-f1-micro \
+  --storage-type=HDD \
+  --storage-size=10 \
+  --authorized-networks=0.0.0.0/0
+
+./gcloud sql users create GopiMaguluri \                     
+  --instance="mlops_exp" \        
+  --password="Gopi@123" \
+  --project="mlops-msds-603"
+
+./gcloud sql databases create "mlflow" --instance="mlops-exp"
+
+----------------------------------------------------------------------
+
+GCS
+
+./gcloud storage buckets create gs://storage-msds603
+
+----------------------------------------------------------------------
+
+REPOSITORY
+
+./gcloud artifacts repositories create "mlops-mlflow" \      
+--location=us-west2 \       
+--repository-format=docker
+
+----------------------------------------------------------------------
+
+SERVICE ACCOUNT
+
+./gcloud iam service-accounts create "mlops-user"
+
+./gcloud config get-value project
+
+./gcloud projects add-iam-policy-binding "mlops-msds-603" --member='serviceAccount:mlops-user@mlops-msds-603.iam.gserviceaccount.com' --role='roles/cloudsql.editor'
+
+./gcloud projects add-iam-policy-binding "mlops-msds-603" --member='serviceAccount:mlops-user@mlops-msds-603.iam.gserviceaccount.com' --role='roles/storage.objectAdmin'
+
+./gcloud projects add-iam-policy-binding "mlops-msds-603" --member='serviceAccount:mlops-user@mlops-msds-603.iam.gserviceaccount.com' --role='roles/secretmanager.secretAccessor'
+
+./gcloud projects add-iam-policy-binding "mlops-msds-603" --member='serviceAccount:mlops-user@mlops-msds-603.iam.gserviceaccount.com' --role='roles/artifactregistry.admin'
+
+./gcloud projects add-iam-policy-binding "mlops-msds-603" --member='serviceAccount:mlops-user@mlops-msds-603.iam.gserviceaccount.com' --role='roles/clouddeploy.serviceAgent'
+
+./gcloud projects add-iam-policy-binding "mlops-msds-603" --member='serviceAccount:mlops-user@mlops-msds-603.iam.gserviceaccount.com' --role='roles/cloudfunctions.admin'
+
+----------------------------------------------------------------------
+
+SECRETS
+
+./gcloud iam service-accounts keys create sa-private-key.json --iam-account=mlops-user@mlops-msds-603.iam.gserviceaccount.com
+
+./gcloud secrets create access_keys --data-file=sa-private-key.json
+
+./gcloud sql instances describe "mlops-exp"
+
+./gcloud secrets create database_url
+
+echo -n "postgresql://<username>:<password>@<ip>/<db-name>" | \    
+    ./gcloud secrets versions add database_url --data-file=-
+
+
+./gcloud secrets create bucket_url
+
+echo -n "gs://<bucket-name>/mlruns" | \                            
+    ./gcloud secrets versions add bucket_url --data-file=-
+
+
+----------------------------------------------------------------------
+
+DOCKER
+
+./gcloud auth configure-docker us-west2-docker.pkg.dev
+
+docker build --platform linux/amd64 -t "us-west2-docker.pkg.dev/mlops-msds-603/mlops-mlflow/mlflow:v1" .
+
+docker push "us-west2-docker.pkg.dev/mlops-msds-603/mlops-mlflow/mlflow:v1"
+
+(OR)
+
+./gcloud builds submit --tag us-west2-docker.pkg.dev/mlops-msds-603/mlops-mlflow/mlflow:v1 # no need to push in this case
+
+(INCASE OF ERROR)
+./gcloud services enable compute.googleapis.com
+
+----------------------------------------------------------------------
+
+GOOGLE CLOUD RUN
+
+./gcloud run deploy "mlops-mlflow-lab-5" \
+          --image "us-west2-docker.pkg.dev/mlops-msds-603/mlops-mlflow/mlflow:v1" \
+          --region "us-west2" \
+          --service-account "mlops-user" \
+          --update-secrets=/secrets/credentials=access_keys:latest \
+          --update-secrets=POSTGRESQL_URL=database_url:latest \
+          --update-secrets=STORAGE_URL=bucket_url:latest \
+          --memory 2Gi \
+          --allow-unauthenticated \
+          --port 8080
+
+(INCASE OF ERROR)
+
+./gcloud run deploy "mlops-mlflow-lab-5" \
+  --image "us-west2-docker.pkg.dev/mlops-msds-603/mlops-mlflow/mlflow:v1" \
+  --region "us-west2" \
+  --service-account "mlops-user" \
+  --memory 2Gi \
+  --port 8080 \
+  --allow-unauthenticated \
+  --command "mlflow" \
+  --args "server,--host=0.0.0.0,--port=8080"
