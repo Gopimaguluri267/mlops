@@ -4,3 +4,6 @@ save_data/
 mlflow.db
 models/
 heart.csv
+lab_5_gcp_files/
+.metaflow/
+mlops/labs/Lab-5-commands.txt
