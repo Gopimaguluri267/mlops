@@ -7,3 +7,5 @@ heart.csv
 lab_5_gcp_files/
 .metaflow/
 mlops/labs/Lab-5-commands.txt
+__pycache__/
+reddit_model_pipeline.joblib
